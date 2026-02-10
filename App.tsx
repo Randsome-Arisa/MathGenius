@@ -10,7 +10,7 @@ const INITIAL_SETTINGS: GenerationSettings = {
   mixedCount: 6,
   fillInBlankCount: 0,
   compareCount: 0,
-  wordCount: 2,
+  wordCount: 1,
   topicFocus: '中等难度三年级混合运算（加减乘除）',
   batchSize: 1,
 };
@@ -92,7 +92,8 @@ const App: React.FC = () => {
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: 'css', after: '.a4-page' }
+      // Rely on CSS page-break-after: always in index.html, preventing double breaks
+      pagebreak: { mode: 'css' }
     };
 
     try {

@@ -22,27 +22,32 @@
         background-color: white !important;
         padding: 0 !important;
         margin: 0 !important;
+        width: 100% !important;
       }
       
-      /* Target the flex container inside Worksheet when in pdf-mode */
+      /* Reset layout containers spacing to prevent gaps creating extra pages */
       .pdf-mode > div {
-        gap: 0 !important;
+        padding-bottom: 0 !important; /* Removes pb-12 */
+      }
+      .pdf-mode > div > div {
+        gap: 0 !important; /* Removes gap-8 */
       }
 
       .pdf-mode .a4-page {
         margin: 0 !important;
         box-shadow: none !important;
         border: none !important;
-        /* Ensure specific page size constraints for PDF generator */
         width: 210mm !important;
-        height: 297mm !important;
+        /* Reduce height slightly (296mm instead of 297mm) to prevent overflow-induced blank pages */
+        height: 296mm !important;
         page-break-after: always;
+        page-break-inside: avoid;
         /* Reset position to ensure continuous flow for html2canvas */
         position: static !important; 
       }
       
       .pdf-mode .a4-page:last-child {
-        page-break-after: avoid;
+        page-break-after: auto !important;
       }
 
       @media print {

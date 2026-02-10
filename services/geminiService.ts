@@ -1,65 +1,50 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GenerationSettings, WorksheetData, ProblemType } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// ==========================================
+// 请在这里填入您的 Kimi (Moonshot) API Key
+// ==========================================
+const KIMI_API_KEY = "sk-vve88rz3tUcpDDXA0eUPwwHB9jNfIUfgwhi6ZvaEnl0maP85"; 
 
-const worksheetSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    mentalQuestions: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "List of mental math questions (e.g., '25 + 15 ='). Return empty array if count is 0.",
-    },
-    verticalQuestions: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "List of vertical calculation questions (e.g., '345 + 128'). Return empty array if count is 0.",
-    },
-    mixedQuestions: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "List of step-by-step/mixed operation questions (e.g., '25 + 4 x 5'). Return empty array if count is 0.",
-    },
-    fillInBlankQuestions: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "List of fill-in-the-blank questions (e.g., '1 m = ( ) cm', '3000g = ( ) kg', '3 x ( ) = 27'). Return empty array if count is 0.",
-    },
-    compareQuestions: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "List of comparison questions. Use '( )' as placeholder for > < or =. (e.g., '50 + 20 ( ) 80'). Return empty array if count is 0.",
-    },
-    wordQuestions: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "List of word problems appropriate for Grade 3 in Chinese. Return empty array if count is 0.",
-    },
-  },
-  required: ["mentalQuestions", "verticalQuestions", "mixedQuestions", "fillInBlankQuestions", "compareQuestions", "wordQuestions"],
-};
+const API_URL = "https://api.moonshot.cn/v1/chat/completions";
 
+// Helper for delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function generateContentWithRetry(contents: string, config: any, retries = 3, backoff = 2000): Promise<any> {
+// Call Kimi API with retry logic
+async function callKimiAPI(messages: any[], retries = 3, backoff = 2000): Promise<any> {
   try {
-    return await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents,
-      config,
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${KIMI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "moonshot-v1-8k",
+        messages: messages,
+        temperature: 0.3, // Lower temperature for stable JSON output
+        response_format: { type: "json_object" } // Force JSON mode
+      })
     });
-  } catch (error: any) {
-    // Check for rate limit (429) or service unavailable (503)
-    // The error object might be wrapped differently depending on the SDK version, 
-    // checking various properties for robustness.
-    const errorCode = error?.status || error?.code || error?.error?.code;
-    const isRateLimit = errorCode === 429 || errorCode === 503 || error?.message?.includes("429") || error?.message?.includes("quota");
 
-    if (isRateLimit && retries > 0) {
-      console.warn(`Gemini API Quota/Limit hit. Retrying in ${backoff}ms... (Attempts left: ${retries})`);
-      await delay(backoff);
-      return generateContentWithRetry(contents, config, retries - 1, backoff * 2);
+    if (!response.ok) {
+      const errorText = await response.text();
+      // Handle Rate Limits (429)
+      if (response.status === 429 && retries > 0) {
+        console.warn(`Kimi API Rate Limit hit. Retrying in ${backoff}ms...`);
+        await delay(backoff);
+        return callKimiAPI(messages, retries - 1, backoff * 1.5);
+      }
+      throw new Error(`Kimi API Request Failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    return await response.json();
+
+  } catch (error) {
+    if (retries > 0) {
+       console.warn(`Network error, retrying...`);
+       await delay(backoff);
+       return callKimiAPI(messages, retries - 1, backoff * 1.5);
     }
     throw error;
   }
@@ -74,46 +59,56 @@ export const generateQuestions = async (
   // To avoid hitting token limits, we only pass the last ~50 questions to avoid
   const limitedAvoidList = avoidList.slice(-50);
   const avoidPrompt = limitedAvoidList.length > 0 
-    ? `\n    **CRITICAL REQUIREMENT**: DO NOT Generate any of the following questions again: ${JSON.stringify(limitedAvoidList)}.` 
+    ? `\n    **禁止生成的题目（已存在）**: ${JSON.stringify(limitedAvoidList)}.` 
     : '';
 
-  const prompt = `
-    You are a math teacher in China teaching Grade 3 (小学三年级数学老师). Generate a math worksheet based on the following requirements.
+  // Construct the prompt
+  const systemPrompt = `
+    你是一位中国小学三年级数学老师。请根据用户的要求生成一套数学练习题。
     
-    **IMPORTANT RULES:**
-    1. All output questions, instructions, and word problems MUST be in Simplified Chinese (简体中文).
-    2. **STRICTLY use '÷' for division. DO NOT use '/'.**
-    3. **STRICTLY use '×' for multiplication. DO NOT use '*'.**
+    **输出格式要求：**
+    1. 必须且只能返回标准的 **JSON** 格式字符串。
+    2. JSON 对象的根必须包含以下字段（如果某类题目数量为0，则返回空数组 []）：
+       - "mentalQuestions": 字符串数组，口算题 (格式: "A + B = ")
+       - "verticalQuestions": 字符串数组，竖式计算题 (格式: "A + B")
+       - "mixedQuestions": 字符串数组，脱式计算题 (格式: "A + B * C")
+       - "fillInBlankQuestions": 字符串数组，填空题 (例如: "1米 = ( )分米")
+       - "compareQuestions": 字符串数组，比大小 (例如: "50 + 20 ( ) 80")
+       - "wordQuestions": 字符串数组，应用题 (中文描述)
+
+    **内容要求：**
+    1. 所有题目、说明和应用题必须使用 **简体中文**。
+    2. 除法符号必须使用 '÷'，禁止使用 '/'。
+    3. 乘法符号必须使用 '×'，禁止使用 '*'。
+    4. 难度必须严格符合中国小学三年级标准。
+    5. 绝对不要生成重复的题目。
     ${avoidPrompt}
-    
-    Topic Focus: ${settings.topicFocus}
-    
-    Requirements:
-    1. ${settings.mentalCount} Mental Math questions (口算). Format: "A operator B = ".
-    2. ${settings.verticalCount} Vertical Calculation questions (竖式计算). Just provide the expression.
-    3. ${settings.mixedCount} Mixed/Step-by-step Calculation questions (脱式计算). Expressions with 3 numbers and 2 operators.
-    4. ${settings.fillInBlankCount} Fill-in-the-blank questions (填空题). Cover unit conversions (length, weight), time, or missing factors. e.g. "3米 = ( )分米".
-    5. ${settings.compareCount} Comparison questions (比大小). Compare expressions or units. Use '( )' as the placeholder for the student to write >, <, or =.
-    6. ${settings.wordCount} Word Problems (应用题). Real-life scenarios familiar to Chinese students.
-    
-    Constraints:
-    - Ensure difficulty is appropriate for Grade 3.
-    - If a count is 0, do not generate questions for that type.
-    - STRICTLY NO DUPLICATE QUESTIONS within the worksheet.
-    - Return strictly JSON.
+  `;
+
+  const userPrompt = `
+    请生成一套试卷，包含以下题目：
+    1. 口算题 (mentalQuestions): ${settings.mentalCount} 道
+    2. 竖式计算 (verticalQuestions): ${settings.verticalCount} 道
+    3. 脱式计算 (mixedQuestions): ${settings.mixedCount} 道
+    4. 填空题 (fillInBlankQuestions): ${settings.fillInBlankCount} 道
+    5. 比大小 (compareQuestions): ${settings.compareCount} 道
+    6. 应用题 (wordQuestions): ${settings.wordCount} 道
+
+    当前侧重的主题/知识点: ${settings.topicFocus}
   `;
 
   try {
-    const response = await generateContentWithRetry(prompt, {
-      responseMimeType: "application/json",
-      responseSchema: worksheetSchema,
-      temperature: 0.85, // Increased temperature for better variety
-    });
+    const data = await callKimiAPI([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt }
+    ]);
 
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
+    const content = data.choices[0].message.content;
+    if (!content) throw new Error("No content from Kimi API");
 
-    const parsed = JSON.parse(text);
+    // Clean JSON string (sometimes LLMs wrap in ```json ... ```)
+    const jsonStr = content.replace(/```json\n?|```/g, '').trim();
+    const parsed = JSON.parse(jsonStr);
 
     // Helper function to ensure symbols are correct
     const cleanQuestion = (q: string) => {
@@ -126,7 +121,8 @@ export const generateQuestions = async (
         const cleaned = cleanQuestion(q.trim());
         let questionText = cleaned;
         
-        if ((type === ProblemType.MENTAL || type === ProblemType.MIXED) && !cleaned.endsWith('=')) {
+        // Ensure equation format for Mental and Mixed
+        if ((type === ProblemType.MENTAL || type === ProblemType.MIXED) && !cleaned.endsWith('=') && !cleaned.includes('=')) {
           questionText = cleaned + ' =';
         }
 
@@ -149,7 +145,7 @@ export const generateQuestions = async (
     };
 
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw new Error("Failed to generate questions. Please try again.");
+    console.error("Kimi API Error:", error);
+    throw new Error("Failed to generate questions via Kimi API. Please check your API Key and Network.");
   }
 };
