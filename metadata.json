@@ -1,0 +1,5 @@
+{
+  "name": "MathGenius - Grade 3 Worksheet Generator",
+  "description": "An intelligent math worksheet generator for 3rd-grade students using Gemini API. Generates mental math, vertical calculations, and mixed operation problems with PDF export capabilities.",
+  "requestFramePermissions": []
+}

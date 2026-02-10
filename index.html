@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MathGenius - Grade 3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+      
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      
+      .font-handwritten {
+        font-family: 'Comic Neue', cursive;
+      }
+
+      /* PDF Generation Mode: Flattens the UI to be print-ready */
+      .pdf-mode {
+        background-color: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      
+      /* Target the flex container inside Worksheet when in pdf-mode */
+      .pdf-mode > div {
+        gap: 0 !important;
+      }
+
+      .pdf-mode .a4-page {
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        /* Ensure specific page size constraints for PDF generator */
+        width: 210mm !important;
+        height: 297mm !important;
+        page-break-after: always;
+        /* Reset position to ensure continuous flow for html2canvas */
+        position: static !important; 
+      }
+      
+      .pdf-mode .a4-page:last-child {
+        page-break-after: avoid;
+      }
+
+      @media print {
+        @page {
+          margin: 0; 
+          size: A4;
+        }
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .no-print {
+          display: none !important;
+        }
+        .a4-page {
+          margin: 0;
+          box-shadow: none;
+          page-break-after: always;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-slate-50 text-slate-900 antialiased">
+    <div id="root"></div>
+  </body>
+</html>
