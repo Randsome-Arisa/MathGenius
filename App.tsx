@@ -11,7 +11,7 @@ const INITIAL_SETTINGS: GenerationSettings = {
   fillInBlankCount: 0,
   compareCount: 0,
   wordCount: 1,
-  topicFocus: '中等难度三年级混合运算（加减乘除）',
+  topicFocus: '中等难度三年级混合运算（加减乘除），竖式计算只需要乘除法',
   batchSize: 1,
 };
 
@@ -19,7 +19,6 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<GenerationSettings>(INITIAL_SETTINGS);
   const [worksheetData, setWorksheetData] = useState<WorksheetData[]>([]);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
   const [history, setHistory] = useState<Set<string>>(new Set());
   
@@ -71,47 +70,9 @@ const App: React.FC = () => {
     setHistory(new Set());
   };
 
-  const handleDownloadPDF = async () => {
-    const element = document.getElementById('print-area');
-    if (!element) {
-      alert("No worksheet to download.");
-      return;
-    }
-    
-    setIsDownloading(true);
-    
-    // Scroll to top to ensure html2canvas captures from the start
-    window.scrollTo(0, 0);
-
-    // Add specific class for styling during print
-    element.classList.add('pdf-mode');
-
-    const opt = {
-      margin: 0,
-      filename: `math-worksheet-${new Date().toISOString().slice(0,10)}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      // Rely on CSS page-break-after: always in index.html, preventing double breaks
-      pagebreak: { mode: 'css' }
-    };
-
-    try {
-      // @ts-ignore
-      if (window.html2pdf) {
-        // @ts-ignore
-        await window.html2pdf().set(opt).from(element).save();
-      } else {
-        alert("PDF generator library not loaded yet. Please wait a moment or refresh.");
-      }
-    } catch (err) {
-      console.error("PDF generation failed:", err);
-      alert("Failed to save PDF. Please try again.");
-    } finally {
-      // Remove the print styling class
-      element.classList.remove('pdf-mode');
-      setIsDownloading(false);
-    }
+  // Switch to native print for robust multi-page support
+  const handlePrint = () => {
+    window.print();
   };
 
   const handleUpdateQuestion = (type: ProblemType, id: string, newQuestion: string) => {
@@ -134,19 +95,19 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-100">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-100 print:bg-white">
       <SettingsPanel
         settings={settings}
         setSettings={setSettings}
         onGenerate={handleGenerate}
-        onDownload={handleDownloadPDF}
+        onDownload={handlePrint}
         isGenerating={isGenerating}
-        isDownloading={isDownloading}
+        isDownloading={false} // No longer using loading state for print
         historyCount={history.size}
         onClearHistory={handleClearHistory}
       />
 
-      <main className="flex-1 overflow-x-hidden relative p-8 print:p-0">
+      <main className="flex-1 overflow-x-hidden relative p-8 print:p-0 print:overflow-visible">
         <div id="print-area">
           <Worksheet 
             data={worksheetData} 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { GenerationSettings } from '../types';
-import { Settings, Sparkles, FileText, Copy, Trash2, Download } from 'lucide-react';
+import { Settings, Sparkles, FileText, Copy, Trash2, Printer } from 'lucide-react';
 
 interface SettingsPanelProps {
   settings: GenerationSettings;
@@ -19,7 +19,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onGenerate,
   onDownload,
   isGenerating,
-  isDownloading,
   historyCount,
   onClearHistory,
 }) => {
@@ -52,9 +51,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               <input
                 type="number"
                 min="1"
-                max="20"
+                max="50"
                 value={settings.batchSize}
-                onChange={(e) => handleChange('batchSize', Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                onChange={(e) => handleChange('batchSize', Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 text-sm"
               />
               <span className="text-sm text-slate-500 whitespace-nowrap">Sets</span>
@@ -192,7 +191,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       <div className="p-6 border-t border-slate-200 bg-slate-50 space-y-3">
         <button
           onClick={onGenerate}
-          disabled={isGenerating || isDownloading}
+          disabled={isGenerating}
           className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold text-white transition-all ${
             isGenerating 
               ? 'bg-indigo-400 cursor-not-allowed' 
@@ -214,22 +213,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
         <button
           onClick={onDownload}
-          disabled={isDownloading || isGenerating}
-          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-all shadow-sm ${
-            isDownloading ? 'cursor-not-allowed opacity-70' : ''
-          }`}
+          disabled={isGenerating}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:text-indigo-600 transition-all shadow-sm"
         >
-          {isDownloading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
-              Saving PDF...
-            </>
-          ) : (
-            <>
-              <Download className="w-5 h-5" />
-              Save as PDF
-            </>
-          )}
+          <Printer className="w-5 h-5" />
+          Print / Save as PDF
         </button>
       </div>
     </div>
