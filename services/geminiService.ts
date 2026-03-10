@@ -3,7 +3,7 @@ import { GenerationSettings, WorksheetData, ProblemType } from "../types";
 // ==========================================
 // 请在这里填入您的 Kimi (Moonshot) API Key
 // ==========================================
-const KIMI_API_KEY = "sk-vve88rz3tUcpDDXA0eUPwwHB9jNfIUfgwhi6ZvaEnl0maP85"; 
+const KIMI_API_KEY = ""; 
 
 const API_URL = "https://api.moonshot.cn/v1/chat/completions";
 
